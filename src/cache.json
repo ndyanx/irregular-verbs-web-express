@@ -1,18 +1,22 @@
 {
-  "drink": {
-    "us": "https://www.oxfordlearnersdictionaries.com/us/media/american_english/us_pron_ogg/d/dri/drink/drink__us_1.ogg"
+  "weren-t": {
+    "us": "https://www.oxfordlearnersdictionaries.com/media/english/us_pron_ogg/w/wer/weren/weren_t_1_us_1_rr.ogg"
   },
-  "hello": {
-    "us": "https://www.oxfordlearnersdictionaries.com/us/media/american_english/us_pron_ogg/h/hel/hello/hello__us_1_rr.ogg",
-    "uk": "https://dictionary.cambridge.org/media/english-spanish/uk_pron_ogg/u/ukh/ukhef/ukheft_029.ogg"
+  "lookout": {
+    "us": "https://www.oxfordlearnersdictionaries.com/media/english/us_pron_ogg/l/loo/looko/lookout__us_1.ogg"
   },
-  "arise": {
-    "us": "https://www.oxfordlearnersdictionaries.com/us/media/american_english/us_pron_ogg/a/ari/arise/arise__us_1.ogg"
+  "summary": {
+    "us": "https://www.oxfordlearnersdictionaries.com/media/english/us_pron_ogg/s/sum/summa/summary__us_2.ogg"
   },
-  "arose": {
-    "us": "https://www.oxfordlearnersdictionaries.com/us/media/american_english/us_pron_ogg/a/aro/arose/arose__us_1.ogg"
+  "honey": {
+    "us": "https://www.oxfordlearnersdictionaries.com/media/english/us_pron_ogg/h/hon/honey/honey__us_1.ogg"
   },
-  "seek": {
-    "us": "https://www.oxfordlearnersdictionaries.com/us/media/american_english/us_pron_ogg/s/see/seek_/seek__us_1.ogg"
+  "national": {
+    "us": "https://www.oxfordlearnersdictionaries.com/media/english/us_pron_ogg/n/nat/natio/national__us_3.ogg",
+    "uk": "https://www.oxfordlearnersdictionaries.com/media/english/uk_pron_ogg/n/nat/natio/national__gb_2.ogg"
+  },
+  "pride": {
+    "us": "https://www.oxfordlearnersdictionaries.com/media/english/us_pron_ogg/p/pri/pride/pride__us_1.ogg",
+    "uk": "https://www.oxfordlearnersdictionaries.com/media/english/uk_pron_ogg/p/pri/pride/pride__gb_1.ogg"
   }
 }
