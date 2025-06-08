@@ -13,19 +13,18 @@ const allowedOrigins = [
 loadCacheFromFile();
 
 // Middleware
-app.use(express.json());
-
-// CORS antes de las rutas
 app.use(cors({
   origin: function(origin, callback) {
-    if (!origin) return callback(null, true); // herramientas sin origin, ej Postman
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = `El CORS policy no permite el origen: ${origin}`;
-      return callback(new Error(msg), false);
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error(`CORS no permite el origen: ${origin}`), false);
     }
-    return callback(null, true);
   }
 }));
+
+app.use(express.json());
 
 // Rutas
 app.use('/api/audio', dictionaryRoutes);
