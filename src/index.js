@@ -4,26 +4,13 @@ const app = express();
 const dictionaryRoutes = require('./routes/dictionaryRoutes');
 const { loadCacheFromFile } = require('./services/audioCache');
 
-const allowedOrigins = [
-  'https://irregular-verbs-icpnx.pages.dev', // tu frontend desplegado
-  'http://localhost:5173' // si usas local también agregarlo
-];
-
 // 🧠 Cargar cache al iniciar
 loadCacheFromFile();
 
-// Middleware
-app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error(`CORS no permite el origen: ${origin}`), false);
-    }
-  }
-}));
+// Middleware CORS abierto: permite solicitudes desde cualquier origen
+app.use(cors());
 
+// Middleware para parsear JSON
 app.use(express.json());
 
 // Rutas
