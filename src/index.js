@@ -3,7 +3,7 @@ const cors = require('cors');
 const app = express();
 const dictionaryRoutes = require('./routes/dictionaryRoutes');
 
-app.use(cors());
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use('/api/audio', dictionaryRoutes);
 
