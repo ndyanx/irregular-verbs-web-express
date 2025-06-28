@@ -73,7 +73,8 @@ const fetchCambridgeData = async (word) => {
     const senses = [];
 
     // Recorremos cada bloque de definición
-    entry.find('div.def-block.ddef_block').each((i, defBlock) => {
+    entry.find('div.sense-block.pr.dsense').each((i, defBlock) => {
+      const sense_title = $(defBlock).find('span.sense-title.dsense-title').first().text().trim();
       const def = $(defBlock).find('div.def.ddef_d').first().text().trim();
       const translation1 = $(defBlock).find('div span.trans.dtrans.dtrans-se').first().text().trim();
       const translation2 = $(defBlock).find('div span.trans.dtrans.dtrans-se span.trans.dtrans').first().text().trim();
@@ -116,7 +117,7 @@ const fetchCambridgeData = async (word) => {
       }
 
       if (def) {
-        senses.push({ definition: def, translation, examples });
+        senses.push({ definition: def, sense_title, translation, examples });
       }
     });
 

@@ -15,6 +15,10 @@ const createTableQuery = `
   )
 `;
 
+// const createTableQuery = `
+//   DROP TABLE IF EXISTS cache
+// `;
+
 pool.query(createTableQuery, (err, res) => {
   if (err) {
     console.error('Error al crear la tabla:', err.stack);
