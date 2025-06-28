@@ -55,9 +55,19 @@ const fetchCambridgeData = async (word) => {
     }
   });
 
+  let id = 1;
   $('div.pr.entry-body__el').each((_, el) => {
     const entry = $(el);
-    const pos = entry.find('span.pos.dpos').first().text().trim();
+    let pos = "";
+    entry.find('span.pos.dpos').each(function(index, element) {
+        const word = $(element).text().trim();
+        if (word) {
+            if (pos) {
+                pos += ', ';
+            }
+            pos += word;
+        }
+    });
     const cefr = entry.find('span.epp-xref.dxref').first().text().trim() || null;
 
     const senses = [];
@@ -111,7 +121,7 @@ const fetchCambridgeData = async (word) => {
     });
 
     if (pos && senses.length > 0) {
-      result.entries.push({ pos, cefr, senses });
+      result.entries.push({ id: id++, pos, cefr, senses });
     }
   });
 
