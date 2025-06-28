@@ -7,6 +7,38 @@ const getHeaders = () => ({
   'Accept-Language': 'en-US,en;q=0.9',
 });
 
+function extractExtraExamples($, defBlock, examples) {
+  let found = false;
+
+  // Buscar como hermanos (caso tradicional)
+  const siblings = $(defBlock).nextAll();
+  for (let sib of siblings) {
+    const $sib = $(sib);
+    if ($sib.hasClass('def-block')) break;
+    if ($sib.hasClass('daccord')) {
+      $sib.find('li.eg.dexamp.hax').each((_, li) => {
+        const en = $(li).text().trim();
+        if (en && !examples.some(ex => ex.en === en)) {
+          examples.push({ en, es: null });
+        }
+      });
+      found = true;
+      break;
+    }
+  }
+
+  // Buscar dentro de .sense-body si no se encontró como hermano
+  if (!found) {
+    const senseBody = $(defBlock).find('.sense-body');
+    senseBody.find('div.daccord').first().find('li.eg.dexamp.hax').each((_, li) => {
+      const en = $(li).text().trim();
+      if (en && !examples.some(ex => ex.en === en)) {
+        examples.push({ en, es: null });
+      }
+    });
+  }
+}
+
 const fetchCambridgeData = async (word) => {
   const url = `https://dictionary.cambridge.org/dictionary/english-spanish/${word}`;
   const response = await axios.get(url, { headers: getHeaders() });
@@ -18,13 +50,11 @@ const fetchCambridgeData = async (word) => {
     entries: []
   };
 
-  const pronBlocks = $('span.pron-info.dpron-info');
   const ipaMap = { us: new Set(), uk: new Set() };
   const audioMap = { us: null, uk: null };
-
   let currentRegion = null;
 
-  pronBlocks.each((_, el) => {
+  $('span.pron-info.dpron-info').each((_, el) => {
     const block = $(el);
     const regionRaw = block.find('span.region.dreg').first().text().trim().toLowerCase();
     const region = regionRaw === 'us' || regionRaw === 'uk' ? regionRaw : null;
@@ -36,16 +66,11 @@ const fetchCambridgeData = async (word) => {
     if (region) currentRegion = region;
     const targetRegion = region || currentRegion;
 
-    if (targetRegion && ipa) {
-      ipaMap[targetRegion].add(ipa);
-    }
-
-    if (region && audioUrl && !audioMap[region]) {
-      audioMap[region] = audioUrl;
-    }
+    if (targetRegion && ipa) ipaMap[targetRegion].add(ipa);
+    if (region && audioUrl && !audioMap[region]) audioMap[region] = audioUrl;
   });
 
-  ['us', 'uk'].forEach((region) => {
+  ['us', 'uk'].forEach(region => {
     const ipaArray = [...ipaMap[region]];
     if (ipaArray.length > 0 || audioMap[region]) {
       result.pronunciations[region] = {
@@ -59,69 +84,38 @@ const fetchCambridgeData = async (word) => {
   $('div.pr.entry-body__el').each((_, el) => {
     const entry = $(el);
     let pos = "";
-    entry.find('span.pos.dpos').each(function(index, element) {
-        const word = $(element).text().trim();
-        if (word) {
-            if (pos) {
-                pos += ', ';
-            }
-            pos += word;
-        }
+    entry.find('span.pos.dpos').each((_, element) => {
+      const word = $(element).text().trim();
+      if (word) pos += (pos ? ', ' : '') + word;
     });
-    const cefr = entry.find('span.epp-xref.dxref').first().text().trim() || null;
 
+    const cefr = entry.find('span.epp-xref.dxref').first().text().trim() || null;
     const senses = [];
 
-    // Recorremos cada bloque de definición
-    entry.find('div.sense-block.pr.dsense').each((i, defBlock) => {
+    entry.find('div.sense-block.pr.dsense').each((_, defBlock) => {
       const sense_title = $(defBlock).find('span.sense-title.dsense-title').first().text().trim();
       const def = $(defBlock).find('div.def.ddef_d').first().text().trim();
+
       const translation1 = $(defBlock).find('div span.trans.dtrans.dtrans-se').first().text().trim();
       const translation2 = $(defBlock).find('div span.trans.dtrans.dtrans-se span.trans.dtrans').first().text().trim();
-
       const merged = `${translation1}, ${translation2}`;
-      const uniqueParts = [...new Set(
-        merged
-          .split(',')
-          .map(part => part.trim())
-          .filter(part => part)
-      )];
-      const translation = uniqueParts.join(', ');
+      const translation = [...new Set(merged.split(',').map(x => x.trim()).filter(Boolean))].join(', ');
 
       const examples = [];
-
-      // Ejemplos dentro del def-block
       $(defBlock).find('div.examp.dexamp').each((_, ex) => {
         const en = $(ex).find('span.eg.deg').text().trim();
         const es = $(ex).find('span.trans.dtrans.hdb').text().trim();
         if (en || es) examples.push({ en, es });
       });
 
-      // Buscar ejemplos extendidos directamente después del defBlock
-      // Buscar la sección de ejemplos extendidos asociada a este defBlock
-      const siblings = $(defBlock).nextAll();
-      for (let j = 0; j < siblings.length; j++) {
-        const sib = $(siblings[j]);
+      extractExtraExamples($, defBlock, examples);
 
-        if (sib.hasClass('def-block')) break; // terminó la sección de este sense
-
-        if (sib.hasClass('daccord')) {
-          sib.find('li.eg.dexamp.hax').each((_, li) => {
-            const en = $(li).text().trim();
-            if (en && !examples.some(ex => ex.en === en)) {
-              examples.push({ en, es: null });
-            }
-          });
-          break; // solo procesamos el primer daccord encontrado
-        }
-      }
-
-      if (def) {
+      if (def || sense_title || translation || examples.length > 0) {
         senses.push({ definition: def, sense_title, translation, examples });
       }
     });
 
-    if (pos && senses.length > 0) {
+    if (pos || senses.length > 0) {
       result.entries.push({ id: id++, pos, cefr, senses });
     }
   });
