@@ -1,11 +1,9 @@
-const { fetchAudioData } = require('../services/audioScraper');
+const { fetchAudioData } = require('../services/wordScraper');
 
-// HEAD para comprobar disponibilidad
 const headStatus = (req, res) => {
   res.status(200).json({ message: 'Service is running' });
 };
 
-// Ruta principal de audio
 const getAudio = async (req, res) => {
   const { word } = req.params;
   try {
@@ -16,7 +14,4 @@ const getAudio = async (req, res) => {
   }
 };
 
-module.exports = {
-  headStatus,
-  getAudio
-};
+module.exports = { headStatus, getAudio };

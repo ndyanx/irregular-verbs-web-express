@@ -1,6 +1,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { getFromCache, setToCache } = require('./audioCache');
+const { getFromCache, setToCache } = require('./wordCache');
 
 const getHeaders = () => ({
   'User-Agent': 'Mozilla/5.0',
