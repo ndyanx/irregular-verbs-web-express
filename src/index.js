@@ -7,8 +7,8 @@ const dictionaryRoutes = require('./routes/dictionaryRoutes');
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-app.use('/api/word', dictionaryRoutes);
 app.use('/api/docs', docsRoutes);
+app.use('/api/word', dictionaryRoutes);
 
 
 app.head('/', (req, res) => {

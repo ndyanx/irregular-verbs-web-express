@@ -4,7 +4,7 @@ const headStatus = (req, res) => {
   res.status(200).json({ message: 'Service is running' });
 };
 
-const getAudio = async (req, res) => {
+const getWord = async (req, res) => {
   const { word } = req.params;
   try {
     const data = await fetchAudioData(word);
@@ -14,4 +14,4 @@ const getAudio = async (req, res) => {
   }
 };
 
-module.exports = { headStatus, getAudio };
+module.exports = { headStatus, getWord };
