@@ -182,7 +182,7 @@ async function fetchAudioData(word) {
     const result = await fetchCambridgeData(word);
     const hasValidAudio = ['us', 'uk'].some(accent => result?.pronunciations?.[accent]?.audioUrl);
     if (!hasValidAudio) throw new Error('No audio URL found');
-    // await setToCache(word, result);
+    await setToCache(word, result);
     return result;
   } catch (err) {
     console.warn('[SCRAPER ERROR]', err.message);
