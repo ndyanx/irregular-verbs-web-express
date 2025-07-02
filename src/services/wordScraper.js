@@ -9,8 +9,6 @@ const getHeaders = () => ({
 
 function extractExtraExamples($, defBlock, examples) {
   let found = false;
-
-  // Buscar como hermanos (caso tradicional)
   const siblings = $(defBlock).nextAll();
   for (let sib of siblings) {
     const $sib = $(sib);
@@ -27,7 +25,6 @@ function extractExtraExamples($, defBlock, examples) {
     }
   }
 
-  // Buscar dentro de .sense-body si no se encontró como hermano
   if (!found) {
     const senseBody = $(defBlock).find('.sense-body');
     senseBody.find('div.daccord').first().find('li.eg.dexamp.hax').each((_, li) => {
@@ -37,6 +34,29 @@ function extractExtraExamples($, defBlock, examples) {
       }
     });
   }
+}
+
+async function fetchCambridgeAudioAndExamplesFromEnglish(word) {
+  const url = `https://dictionary.cambridge.org/dictionary/english/${word}`;
+  const response = await axios.get(url, { headers: getHeaders() });
+  const $ = cheerio.load(response.data);
+
+  const ipaMap = { us: new Set(), uk: new Set() };
+  const audioMap = { us: null, uk: null };
+
+  ['us', 'uk'].forEach(region => {
+    const selector = `span.${region}.dpron-i`;
+    const block = $(selector).first();
+    if (block.length > 0) {
+      const ipa = block.find('span.ipa.dipa').first().text().trim();
+      const audioSrc = block.find('audio source[type="audio/ogg"]').attr('src');
+      const audioUrl = audioSrc ? `https://dictionary.cambridge.org${audioSrc}` : null;
+      if (ipa) ipaMap[region].add(ipa);
+      if (audioUrl) audioMap[region] = audioUrl;
+    }
+  });
+
+  return { ipaMap, audioMap };
 }
 
 const fetchCambridgeData = async (word) => {
@@ -58,17 +78,28 @@ const fetchCambridgeData = async (word) => {
     const block = $(el);
     const regionRaw = block.find('span.region.dreg').first().text().trim().toLowerCase();
     const region = regionRaw === 'us' || regionRaw === 'uk' ? regionRaw : null;
-
     const ipa = block.find('span.ipa.dipa').first().text().trim();
     const audioSrc = block.find('audio source[type="audio/ogg"]').attr('src');
     const audioUrl = audioSrc ? `https://dictionary.cambridge.org${audioSrc}` : null;
-
     if (region) currentRegion = region;
     const targetRegion = region || currentRegion;
-
     if (targetRegion && ipa) ipaMap[targetRegion].add(ipa);
     if (region && audioUrl && !audioMap[region]) audioMap[region] = audioUrl;
   });
+
+  const needsFallback = !audioMap.us && !audioMap.uk;
+  let fallback = null;
+  if (needsFallback) {
+    fallback = await fetchCambridgeAudioAndExamplesFromEnglish(word);
+    ['us', 'uk'].forEach(region => {
+      if (!audioMap[region] && fallback.audioMap[region]) {
+        audioMap[region] = fallback.audioMap[region];
+      }
+      for (const ipa of fallback.ipaMap[region]) {
+        ipaMap[region].add(ipa);
+      }
+    });
+  }
 
   ['us', 'uk'].forEach(region => {
     const ipaArray = [...ipaMap[region]];
@@ -81,14 +112,13 @@ const fetchCambridgeData = async (word) => {
   });
 
   let id = 1;
-  $('div.pr.entry-body__el').each((_, el) => {
+  $('div.pr.entry-body').each((_, el) => {
     const entry = $(el);
     let pos = "";
     entry.find('span.pos.dpos').each((_, element) => {
       const word = $(element).text().trim();
       if (word) pos += (pos ? ', ' : '') + word;
     });
-
     const cefr = entry.find('span.epp-xref.dxref').first().text().trim() || null;
     const senses = [];
 
@@ -134,7 +164,6 @@ const validateAudioUrl = async (url) => {
 
 async function fetchAudioData(word) {
   word = word.toLowerCase().trim().replace(/[^a-z]/g, '-');
-
   const cached = await getFromCache(word);
 
   if (cached) {
@@ -153,9 +182,7 @@ async function fetchAudioData(word) {
     const result = await fetchCambridgeData(word);
     const hasValidAudio = ['us', 'uk'].some(accent => result?.pronunciations?.[accent]?.audioUrl);
     if (!hasValidAudio) throw new Error('No audio URL found');
-
-    await setToCache(word, result);
-
+    // await setToCache(word, result);
     return result;
   } catch (err) {
     console.warn('[SCRAPER ERROR]', err.message);
