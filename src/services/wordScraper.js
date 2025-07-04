@@ -105,7 +105,6 @@ const fetchCambridgeData = async (word) => {
     entry.find('div.sense-block.pr.dsense').each((_, senseBlock) => {
       let sense_title = $(senseBlock).find('span.sense-title.dsense-title').first().text().trim();
       $(senseBlock).find('div.sense-body.dsense_b').each((_, senseBody) => {
-        // Definiciones normales
         $(senseBody).find('div.def-block.ddef_block').each((_, defBlock) => {
           const def = $(defBlock).find('div.def.ddef_d').first().text().trim();
           const translation1 = $(defBlock).find('span.trans.dtrans.dtrans-se').first().text().trim();
@@ -120,12 +119,9 @@ const fetchCambridgeData = async (word) => {
             if (en || es) examples.push({ en, es });
           });
 
-          // solo si NO está dentro de un phrase-block
-          if (!$(defBlock).closest('.phrase-block.pr.dphrase-block').length) {
-            const daccord = $(defBlock).nextAll('.daccord').first();
-            if (daccord.length > 0) {
-              extractExtraExamples($, daccord, examples);
-            }
+          const daccord = $(defBlock).nextAll('.daccord').first();
+          if (daccord.length > 0) {
+            extractExtraExamples($, daccord, examples);
           }
 
           if (def || sense_title || translation || examples.length > 0) {
@@ -133,7 +129,6 @@ const fetchCambridgeData = async (word) => {
           }
         });
 
-        // Frases hechas
         $(senseBody).find('div.phrase-block.pr.dphrase-block').each((_, phraseBlock) => {
           const phrase = $(phraseBlock).find('span.phrase-title').first().text().trim();
 
@@ -151,7 +146,10 @@ const fetchCambridgeData = async (word) => {
               if (en || es) examples.push({ en, es });
             });
 
-            extractExtraExamples($, defBlock, examples);
+            const daccord = $(defBlock).nextAll('.daccord').first();
+            if (daccord.length > 0) {
+              extractExtraExamples($, daccord, examples);
+            }
 
             if (phrase || def || translation || examples.length > 0) {
               const indexToRemove = senses.findIndex(s =>
@@ -209,7 +207,7 @@ async function fetchAudioData(word) {
     const result = await fetchCambridgeData(word);
     const hasValidAudio = ['us', 'uk'].some(accent => result?.pronunciations?.[accent]?.audioUrl);
     if (!hasValidAudio) throw new Error('No audio URL found');
-    await setToCache(word, result);
+    // await setToCache(word, result);
     return result;
   } catch (err) {
     console.warn('[SCRAPER ERROR]', err.message);
