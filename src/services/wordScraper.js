@@ -122,27 +122,66 @@ const fetchCambridgeData = async (word) => {
     const cefr = entry.find('span.epp-xref.dxref').first().text().trim() || null;
     const senses = [];
 
-    entry.find('div.sense-block.pr.dsense').each((_, defBlock) => {
-      const sense_title = $(defBlock).find('span.sense-title.dsense-title').first().text().trim();
-      const def = $(defBlock).find('div.def.ddef_d').first().text().trim();
+    entry.find('div.sense-block.pr.dsense').each((_, senseBlock) => {
+      let sense_title = $(senseBlock).find('span.sense-title.dsense-title').first().text().trim();
+      $(senseBlock).find('div.sense-body.dsense_b').each((_, senseBody) => {
+        // 1. Definiciones normales
+        $(senseBody).find('div.def-block.ddef_block').each((_, defBlock) => {
+          const def = $(defBlock).find('div.def.ddef_d').first().text().trim();
+          const translation1 = $(defBlock).find('span.trans.dtrans.dtrans-se').first().text().trim();
+          const translation2 = $(defBlock).find('span.trans.dtrans.dtrans-se span.trans.dtrans').first().text().trim();
+          const merged = `${translation1}, ${translation2}`;
+          const translation = [...new Set(merged.split(',').map(x => x.trim()).filter(Boolean))].join(', ');
 
-      const translation1 = $(defBlock).find('div span.trans.dtrans.dtrans-se').first().text().trim();
-      const translation2 = $(defBlock).find('div span.trans.dtrans.dtrans-se span.trans.dtrans').first().text().trim();
-      const merged = `${translation1}, ${translation2}`;
-      const translation = [...new Set(merged.split(',').map(x => x.trim()).filter(Boolean))].join(', ');
+          const examples = [];
+          $(defBlock).find('div.examp.dexamp').each((_, ex) => {
+            const en = $(ex).find('span.eg.deg').text().trim();
+            const es = $(ex).find('span.trans.dtrans.hdb').text().trim();
+            if (en || es) examples.push({ en, es });
+          });
 
-      const examples = [];
-      $(defBlock).find('div.examp.dexamp').each((_, ex) => {
-        const en = $(ex).find('span.eg.deg').text().trim();
-        const es = $(ex).find('span.trans.dtrans.hdb').text().trim();
-        if (en || es) examples.push({ en, es });
+          extractExtraExamples($, defBlock, examples);
+
+          if (def || sense_title || translation || examples.length > 0) {
+            senses.push({ type: 'definition', phrase: '', definition: def, sense_title, translation, examples });
+          }
+        });
+
+        // 2. Frases hechas / expresiones idiomáticas
+        $(senseBody).find('div.phrase-block.pr.dphrase-block').each((_, phraseBlock) => {
+          const phrase = $(phraseBlock).find('span.phrase-title').first().text().trim();
+          const def = $(phraseBlock).find('div.def.ddef_d').first().text().trim();
+          const translation1 = $(phraseBlock).find('span.trans.dtrans.dtrans-se').first().text().trim();
+          const translation2 = $(phraseBlock).find('span.trans.dtrans.dtrans-se span.trans.dtrans').first().text().trim();
+          const merged = `${translation1}, ${translation2}`;
+          const translation = [...new Set(merged.split(',').map(x => x.trim()).filter(Boolean))].join(', ');
+
+          const examples = [];
+          $(phraseBlock).find('div.examp.dexamp').each((_, ex) => {
+            const en = $(ex).find('span.eg.deg').text().trim();
+            const es = $(ex).find('span.trans.dtrans.hdb').text().trim();
+            if (en || es) examples.push({ en, es });
+          });
+
+          extractExtraExamples($, phraseBlock, examples);
+
+          if (phrase || def || translation || examples.length > 0) {
+            // Eliminar cualquier definición previa con el mismo contenido
+            const indexToRemove = senses.findIndex(s =>
+              s.type === 'definition' &&
+              s.definition === def &&
+              s.translation === translation &&
+              s.sense_title === sense_title
+            );
+
+            if (indexToRemove !== -1) {
+              senses.splice(indexToRemove, 1); // eliminar la definición duplicada
+            }
+
+            senses.push({ type: 'phrase', phrase, definition: def, sense_title, translation, examples });
+          }
+        });
       });
-
-      extractExtraExamples($, defBlock, examples);
-
-      if (def || sense_title || translation || examples.length > 0) {
-        senses.push({ definition: def, sense_title, translation, examples });
-      }
     });
 
     if (pos || senses.length > 0) {
