@@ -45,7 +45,7 @@ const fetchCambridgeData = async (word) => {
   const $ = cheerio.load(response.data);
 
   const result = {
-    word,
+    word: word.replace('-', "'"),
     pronunciations: {},
     entries: []
   };
