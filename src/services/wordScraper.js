@@ -1,6 +1,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { getFromCache, setToCache } = require('./wordCache');
+const { scrapeQueue } = require('./scrapeQueue');
 
 const getHeaders = () => ({
   'User-Agent': 'Mozilla/5.0',
@@ -204,10 +205,13 @@ async function fetchAudioData(word) {
   }
 
   try {
-    const result = await fetchCambridgeData(word);
-    const hasValidAudio = ['us', 'uk'].some(accent => result?.pronunciations?.[accent]?.audioUrl);
-    if (!hasValidAudio) throw new Error('No audio URL found');
-    await setToCache(word, result);
+    const result = await scrapeQueue.enqueue(`scrape:${word}`, async () => {
+      const scraped = await fetchCambridgeData(word);
+      const hasValidAudio = ['us', 'uk'].some(accent => scraped?.pronunciations?.[accent]?.audioUrl);
+      if (!hasValidAudio) throw new Error('No audio URL found');
+      await setToCache(word, scraped);
+      return scraped;
+    });
     return result;
   } catch (err) {
     console.warn('[SCRAPER ERROR]', err.message);
