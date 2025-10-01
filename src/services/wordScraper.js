@@ -206,16 +206,18 @@ async function fetchAudioData(word) {
   const cached = await getFromCache(word);
 
   if (cached) {
+    logger.info(`[CACHE] JSON cargado desde cache para ${word}`);
+    return cached;
     // Si el caché tiene al menos un audio válido, retornamos
-    const hasAudio = ['us', 'uk'].some(accent => cached?.pronunciations?.[accent]?.audioUrl);
+    /* const hasAudio = ['us', 'uk'].some(accent => cached?.pronunciations?.[accent]?.audioUrl);
     const allValid = await Promise.all(
       ['us', 'uk'].map(accent => validateAudioUrl(cached?.pronunciations?.[accent]?.audioUrl || ''))
     );
     if (hasAudio && allValid.some(valid => valid)) {
       logger.info(`[CACHE] JSON cargado desde cache para ${word}`);
       return cached;
-    }
-    logger.info(`[CACHE] Alguna URL rota para ${word}, regenerando...`);
+    } */
+    //logger.info(`[CACHE] Alguna URL rota para ${word}, regenerando...`);
   }
 
   try {
