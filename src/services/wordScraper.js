@@ -1,6 +1,7 @@
 // Scraper de Cambridge Dictionary (inglés-español) con soporte de pronunciaciones y ejemplos
 // Usa una cola con concurrencia limitada para evitar scrapes duplicados por palabra
 // y validar/rehidratar el caché cuando las URLs de audio no son válidas
+const logger = require('pino')()
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { getFromCache, setToCache } = require('./wordCache');
@@ -211,10 +212,10 @@ async function fetchAudioData(word) {
       ['us', 'uk'].map(accent => validateAudioUrl(cached?.pronunciations?.[accent]?.audioUrl || ''))
     );
     if (hasAudio && allValid.some(valid => valid)) {
-      console.log(`[CACHE] JSON cargado desde cache para ${word}`);
+      logger.info(`[CACHE] JSON cargado desde cache para ${word}`);
       return cached;
     }
-    console.log(`[CACHE] Alguna URL rota para ${word}, regenerando...`);
+    logger.info(`[CACHE] Alguna URL rota para ${word}, regenerando...`);
   }
 
   try {
@@ -229,7 +230,7 @@ async function fetchAudioData(word) {
     });
     return result;
   } catch (err) {
-    console.warn('[SCRAPER ERROR]', err.message);
+    logger.warn('[SCRAPER ERROR]', err.message);
     throw new Error(`No se pudo obtener los datos para "${word}"`);
   }
 }

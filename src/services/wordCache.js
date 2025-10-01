@@ -1,3 +1,5 @@
+const logger = require('pino')()
+
 const { Pool } = require('pg');
 const path = require('path');
 const fs = require('fs');
@@ -21,9 +23,9 @@ const createTableQuery = `
 
 pool.query(createTableQuery, (err, res) => {
   if (err) {
-    console.error('Error al crear la tabla:', err.stack);
+    logger.error('Error al crear la tabla:', err.stack);
   } else {
-    console.log('Tabla "cache" creada o ya existe');
+    logger.info('Tabla "cache" creada o ya existe');
   }
 });
 
@@ -67,7 +69,7 @@ function exportCacheToFile(filePath = path.join(__dirname, '../data/cache.json')
           cacheData[row.word] = row.json;
         });
         fs.writeFileSync(filePath, JSON.stringify(cacheData, null, 2), 'utf-8');
-        console.log(`[CACHE] Exportado a ${filePath}`);
+        logger.info(`[CACHE] Exportado a ${filePath}`);
         resolve();
       }
     });
