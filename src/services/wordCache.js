@@ -1,84 +1,97 @@
-const logger = require('pino')()
-
-const { Pool } = require('pg');
+const logger = require('pino')();
+const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_PG_URL,
-  ssl: true
-});
+// Configuración de directorio para la base de datos
+const dbDir = path.join(__dirname, '../data');
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
 
-const createTableQuery = `
+// Inicialización de SQLite con WAL para mejor concurrencia
+const db = new Database(path.join(dbDir, 'cache.db'));
+db.pragma('journal_mode = WAL');
+
+db.prepare(`
   CREATE TABLE IF NOT EXISTS cache (
     word TEXT PRIMARY KEY,
-    json JSONB NOT NULL
+    json TEXT NOT NULL
   )
-`;
+`).run();
 
-// const createTableQuery = `
-//   DROP TABLE IF EXISTS cache
-// `;
+// Consultas preparadas para mejor rendimiento
+const getStmt = db.prepare('SELECT json FROM cache WHERE word = ?');
+const insertStmt = db.prepare('INSERT OR REPLACE INTO cache (word, json) VALUES (?, ?)');
 
-pool.query(createTableQuery, (err, res) => {
-  if (err) {
-    logger.error('Error al crear la tabla:', err.stack);
-  } else {
-    logger.info('Tabla "cache" creada o ya existe');
+/**
+ * Obtiene datos de una palabra desde la caché
+ */
+async function getFromCache(word) {
+  try {
+    const row = getStmt.get(word);
+    return row ? JSON.parse(row.json) : null;
+  } catch (err) {
+    logger.error('Cache read error:', err);
+    return null;
   }
-});
-
-function getFromCache(word) {
-  return new Promise((resolve, reject) => {
-    const query = 'SELECT json FROM cache WHERE word = $1';
-    pool.query(query, [word], (err, res) => {
-      if (err) {
-        reject(err);
-      } else {
-        const row = res.rows[0];
-        resolve(row ? row.json : null);
-      }
-    });
-  });
 }
 
-function setToCache(word, fullData) {
-  const jsonString = JSON.stringify(fullData);
-  return new Promise((resolve, reject) => {
-    const query = 'INSERT INTO cache (word, json) VALUES ($1, $2) ON CONFLICT (word) DO UPDATE SET json = EXCLUDED.json';
-    pool.query(query, [word, jsonString], (err, res) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(res);
-      }
-    });
-  });
+/**
+ * Stores word data in cache
+ * @param {string} word - Word to store
+ * @param {Object} fullData - Data to cache (will be JSON stringified)
+ */
+async function setToCache(word, fullData) {
+  try {
+    insertStmt.run(word, JSON.stringify(fullData));
+  } catch (err) {
+    logger.error('Cache write error:', err);
+    throw err;
+  }
 }
 
-function exportCacheToFile(filePath = path.join(__dirname, '../data/cache.json')) {
-  return new Promise((resolve, reject) => {
-    const query = 'SELECT word, json FROM cache';
-    pool.query(query, (err, res) => {
-      if (err) {
-        reject(err);
-      } else {
-        const cacheData = {};
-        res.rows.forEach(row => {
-          cacheData[row.word] = row.json;
-        });
-        fs.writeFileSync(filePath, JSON.stringify(cacheData, null, 2), 'utf-8');
-        logger.info(`[CACHE] Exportado a ${filePath}`);
-        resolve();
+/**
+ * Exports entire cache to a JSON file
+ * @param {string} filePath - Path to export file (default: './data/cache_export.json')
+ * @returns {Promise<void>}
+ */
+async function exportCacheToFile(filePath = path.join(dbDir, 'cache_export.json')) {
+  try {
+    const cacheData = {};
+    const rows = db.prepare('SELECT word, json FROM cache').all();
+    
+    rows.forEach(row => {
+      try {
+        cacheData[row.word] = JSON.parse(row.json);
+      } catch (e) {
+        logger.warn(`Invalid JSON for ${row.word}`, e);
       }
     });
-  });
+    
+    fs.writeFileSync(filePath, JSON.stringify(cacheData, null, 2), 'utf-8');
+    logger.info(`Cache exported to ${path.basename(filePath)}`);
+  } catch (err) {
+    logger.error('Export failed:', err);
+    throw err;
+  }
 }
 
+/**
+ * Closes database connection
+ * Should be called on application shutdown
+ */
 function closeConnection() {
-  pool.end();
+  db.close();
 }
+
+// Manejo de cierre limpio
+process.on('SIGINT', () => {
+  logger.info('Closing database...');
+  closeConnection();
+  process.exit(0);
+});
 
 module.exports = {
   getFromCache,

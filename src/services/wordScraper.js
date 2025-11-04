@@ -1,19 +1,21 @@
-// Scraper de Cambridge Dictionary (inglés-español) con soporte de pronunciaciones y ejemplos
-// Usa una cola con concurrencia limitada para evitar scrapes duplicados por palabra
-// y validar/rehidratar el caché cuando las URLs de audio no son válidas
+/**
+ * Scrapes Cambridge Dictionary (English-Spanish) for word data including
+ * pronunciations, examples, and audio URLs. Uses a queue system to prevent
+ * duplicate requests and handles cache validation.
+ */
 const logger = require('pino')()
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { getFromCache, setToCache } = require('./wordCache');
 const { scrapeQueue } = require('./scrapeQueue');
 
-// Encabezados básicos para reducir bloqueos por parte del sitio objetivo
+// Standard headers to reduce blocking
 const getHeaders = () => ({
   'User-Agent': 'Mozilla/5.0',
   'Accept-Language': 'en-US,en;q=0.9',
 });
 
-// Busca ejemplos adicionales que aparecen en bloques colapsables
+// Extracts additional examples from collapsible blocks
 function extractExtraExamples($, container, examples) {
   $(container).find('li.eg.dexamp.hax').each((_, li) => {
     const en = $(li).text().trim();
@@ -23,7 +25,7 @@ function extractExtraExamples($, container, examples) {
   });
 }
 
-// Fallback: cuando el audio/IPA no está en la vista inglés-español, consulta la vista en inglés
+// Fallback: Fetches audio/IPA from English view when not in English-Spanish view
 async function fetchCambridgeAudioAndExamplesFromEnglish(word) {
   const url = `https://dictionary.cambridge.org/dictionary/english/${word}`;
   const response = await axios.get(url, { headers: getHeaders() });
@@ -47,7 +49,7 @@ async function fetchCambridgeAudioAndExamplesFromEnglish(word) {
   return { ipaMap, audioMap };
 }
 
-// Scrapea la vista inglés-español y arma el JSON de salida (pronunciaciones y entradas)
+// Main function to scrape word data from Cambridge Dictionary
 const fetchCambridgeData = async (word) => {
   const url = `https://dictionary.cambridge.org/dictionary/english-spanish/${word}`;
   const response = await axios.get(url, { headers: getHeaders() });
@@ -190,7 +192,11 @@ const fetchCambridgeData = async (word) => {
   return result;
 };
 
-// Verifica que la URL de audio responda correctamente en HEAD (rápido)
+/**
+ * Validates if an audio URL is accessible via HEAD request
+ * @param {string} url - Audio URL to validate
+ * @returns {Promise<boolean>} True if URL is accessible
+ */
 const validateAudioUrl = async (url) => {
   try {
     const response = await axios.head(url, { headers: getHeaders(), timeout: 5000 });
@@ -200,7 +206,11 @@ const validateAudioUrl = async (url) => {
   }
 };
 
-// Punto de entrada: normaliza la palabra, usa caché si es válido y si no encola scraping
+/**
+ * Main function to get word data, using cache when possible
+ * @param {string} word - Word to look up
+ * @returns {Promise<Object>} Word data with pronunciations and examples
+ */
 async function fetchAudioData(word) {
   word = word.toLowerCase().trim().replace(/[^a-z]/g, '-');
   const cached = await getFromCache(word);
@@ -208,25 +218,27 @@ async function fetchAudioData(word) {
   if (cached) {
     logger.info(`[CACHE] JSON cargado desde cache para ${word}`);
     return cached;
-    // Si el caché tiene al menos un audio válido, retornamos
-    /* const hasAudio = ['us', 'uk'].some(accent => cached?.pronunciations?.[accent]?.audioUrl);
-    const allValid = await Promise.all(
-      ['us', 'uk'].map(accent => validateAudioUrl(cached?.pronunciations?.[accent]?.audioUrl || ''))
-    );
-    if (hasAudio && allValid.some(valid => valid)) {
-      logger.info(`[CACHE] JSON cargado desde cache para ${word}`);
-      return cached;
-    } */
-    //logger.info(`[CACHE] Alguna URL rota para ${word}, regenerando...`);
+    // Cache validation with audio URL check (commented out for performance)
+    // Uncomment to enable strict cache validation
+    // Comprueba si el caché tiene al menos un audio válido
+    // const hasAudio = ['us', 'uk'].some(acc => cached?.pronunciations?.[acc]?.audioUrl);
+    // const allValid = await Promise.all(
+    //   ['us', 'uk'].map(acc => validateAudioUrl(cached?.pronunciations?.[acc]?.audioUrl || ''))
+    // );
+    // if (hasAudio && allValid.some(valid => valid)) {
+    //   logger.info(`[CACHE] Using cached data for ${word}`);
+    //   return cached;
+    // }
+    // logger.info(`[CACHE] Invalid cache for ${word}, regenerating...`);
   }
 
   try {
-    // Encola scraping con deduplicación por palabra y límite de concurrencia global
+    // Queue the request with deduplication
     const result = await scrapeQueue.enqueue(`scrape:${word}`, async () => {
       const scraped = await fetchCambridgeData(word);
       const hasValidAudio = ['us', 'uk'].some(accent => scraped?.pronunciations?.[accent]?.audioUrl);
       if (!hasValidAudio) throw new Error('No audio URL found');
-      // Actualiza el caché tras un scrape exitoso
+      // Update cache on successful scrape
       await setToCache(word, scraped);
       return scraped;
     });

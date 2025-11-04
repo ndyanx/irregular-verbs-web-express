@@ -1,19 +1,12 @@
-// Cola con límite de concurrencia y deduplicación por clave para scrapers
-// Útil para evitar scrapes duplicados y controlar presión sobre sitios externos
-// Ajustable con la variable de entorno SCRAPE_CONCURRENCY
-//
-// API principal:
-// - enqueue(key, fn): encola y deduplica por clave, devuelve una promesa del resultado
-// - setConcurrency(n): cambia el límite de concurrencia en tiempo de ejecución
-//
-// Caso de uso en este proyecto: envolver el scraping cuando el caché no es válido
-// para que múltiples pedidos de la misma palabra compartan el mismo trabajo.
- 
-// Mapa para deduplicar tareas por clave mientras estén en vuelo
+/**
+ * Queue with concurrency control and task deduplication for web scraping.
+ * Uses SCRAPE_CONCURRENCY env var (default: 2) to limit concurrent requests.
+ * 
+ * Methods:
+ * - enqueue(key, fn): Adds task to queue, deduplicates by key
+ * - setConcurrency(n): Updates max concurrent tasks
+ */
 const PENDING_TASKS_BY_KEY = new Map();
-
-// Administra ejecución concurrente controlada de tareas asíncronas
-// (en esencia, un semáforo simple con cola FIFO)
 class ScrapeQueue {
   constructor(maxConcurrent = 2) {
     this.maxConcurrent = Math.max(1, Number(maxConcurrent) || 2);
@@ -21,13 +14,13 @@ class ScrapeQueue {
     this.queue = [];
   }
 
-  // Permite ajustar el límite de concurrencia en runtime
+  /** Updates max concurrent tasks and processes queue */
   setConcurrency(n) {
     this.maxConcurrent = Math.max(1, Number(n) || 1);
     this._drain();
   }
 
-  // Ejecuta tareas mientras haya cupo disponible
+  /** Processes tasks when there are available slots */
   _drain() {
     while (this.currentRunning < this.maxConcurrent && this.queue.length > 0) {
       const task = this.queue.shift();
@@ -42,8 +35,10 @@ class ScrapeQueue {
     }
   }
 
-  // Deduplicate by key: if a task with same key is pending or running, return same promise
-  // Encola una tarea y, si existe otra con la misma clave, devuelve la misma promesa
+  /**
+   * Adds a task to the queue, deduplicating by key
+   * @returns {Promise} Existing promise if task with same key is pending
+   */
   enqueue(key, fn) {
     if (key && PENDING_TASKS_BY_KEY.has(key)) {
       return PENDING_TASKS_BY_KEY.get(key);
@@ -67,7 +62,7 @@ class ScrapeQueue {
   }
 }
 
-// Límite de concurrencia configurable vía env (por defecto 2)
+// Initialize with concurrency from env or default to 2
 const defaultConcurrency = process.env.SCRAPE_CONCURRENCY || 2;
 const scrapeQueue = new ScrapeQueue(defaultConcurrency);
 
