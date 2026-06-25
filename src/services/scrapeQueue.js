@@ -62,13 +62,30 @@ class ScrapeQueue {
   }
 }
 
-// Initialize with concurrency from env or default to 2
-const defaultConcurrency = process.env.SCRAPE_CONCURRENCY || 2;
-const scrapeQueue = new ScrapeQueue(defaultConcurrency);
+// Configuración de concurrencia
+const CONCURRENCY = {
+  WORD: 2,                 // 3 búsquedas individuales simultáneas
+  PARAGRAPH_WORD: 2        // Procesar 2 palabras de párrafos a la vez (en total, no por párrafo)
+};
+
+// Cola para búsquedas individuales
+const wordQueue = new ScrapeQueue(CONCURRENCY.WORD);
+
+// Cola para procesamiento de palabras de párrafos
+// Esta es una COLA GLOBAL para todas las palabras de TODOS los párrafos
+const paragraphWordQueue = new ScrapeQueue(CONCURRENCY.PARAGRAPH_WORD);
+
+// Almacenar referencias a las colas para posibles usos futuros
+const queues = {
+  word: wordQueue,
+  paragraph: paragraphWordQueue
+};
 
 module.exports = {
-  scrapeQueue,
-  ScrapeQueue,
+  wordQueue,
+  paragraphWordQueue,
+  queues,
+  ScrapeQueue
 };
 
 

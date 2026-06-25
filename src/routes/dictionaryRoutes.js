@@ -1,19 +1,31 @@
 const express = require('express');
 const router = express.Router();
-const { headStatus, getWord } = require('../controllers/dictionaryController');
+const { getWord, processParagraph } = require('../controllers/dictionaryController');
 const validateWordParam = require('../middlewares/validateWordParam');
 
-/**
- * Health check endpoint
- * @route HEAD /
- */
-router.head('/', headStatus);
+// Estado del servicio
+router.get('/status', (req, res) => res.json({ 
+  status: 'OK',
+  timestamp: new Date().toISOString()
+}));
 
-/**
- * Get word data
- * @route GET /:word
- * @param {string} word.path.required - Word to look up (letters and hyphens only)
- */
-router.get('/:word', validateWordParam, getWord);
+// Obtiene datos de palabra
+router.get('/word/:word', validateWordParam, getWord);
+
+// Procesa múltiples palabras
+router.post('/words', express.json(), processParagraph);
+
+// Ruta no encontrada
+router.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Ruta no encontrada',
+    availableEndpoints: [
+      'GET /api/status',
+      'GET /api/word/:word',
+      'POST /api/words'
+    ]
+  });
+});
 
 module.exports = router;
